@@ -40,7 +40,7 @@ export const GraphContent: React.FC<GraphContentProps> = ({
                 {data && data.length > 0 ? (
                     <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={data}>
-                            <YAxis domain={['dataMin', 'dataMax']} hide />
+                            <YAxis domain={['dataMin - 1', 'dataMax + 1']} hide />
                             <Line
                                 type="monotone"
                                 dataKey="value"
@@ -52,8 +52,9 @@ export const GraphContent: React.FC<GraphContentProps> = ({
                         </LineChart>
                     </ResponsiveContainer>
                 ) : (
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'rgba(255,255,255,0.3)', fontSize: '0.8rem' }}>
-                        Chargement des données...
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'rgba(255,255,255,0.3)', fontSize: '0.8rem', textAlign: 'center', padding: '0 10px' }}>
+                        <div style={{ marginBottom: '4px', opacity: 0.5 }}>📊</div>
+                        {currentValue ? "Collecte des données (v2)..." : "Aucune donnée"}
                     </div>
                 )}
             </div>

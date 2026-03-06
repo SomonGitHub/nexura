@@ -132,6 +132,7 @@ function App() {
   const [hassEntities, setHassEntities] = useState<HassEntities>({});
   const [hassConnection, setHassConnection] = useState<Connection | null>(null);
   const [hassState, setHassState] = useState<HassConnectionState>('connecting');
+  const [liveHistory, setLiveHistory] = useState<Record<string, { time: string; value: number }[]>>({});
 
   // Unified WebSocket Caller
   const callHAWebSocket = async (type: string, payload?: Record<string, unknown>): Promise<unknown> => {
@@ -161,6 +162,49 @@ function App() {
       setHassConnection(conn);
     });
   }, []);
+
+  // Update live history when entities change
+  useEffect(() => {
+    if (Object.keys(hassEntities).length === 0) return;
+
+    setLiveHistory(prev => {
+      const next = { ...prev };
+      let changed = false;
+
+      tiles.forEach(tile => {
+        if (tile.type === 'graph' && tile.entityId) {
+          const entity = hassEntities[tile.entityId];
+          const rawState = entity?.state;
+          const newValue = parseFloat(rawState);
+
+          if (entity && !isNaN(newValue)) {
+            const history = next[tile.id] || [];
+            const lastPoint = history[history.length - 1];
+
+            // Initialization: If no history, add current value immediately
+            if (history.length === 0) {
+              next[tile.id] = [{
+                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                value: newValue
+              }];
+              changed = true;
+            } else if (lastPoint.value !== newValue) {
+              // Add new point only if value changed
+              const newPoint = {
+                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                value: newValue
+              };
+              // Keep last 40 points for a longer graph
+              next[tile.id] = [...history, newPoint].slice(-40);
+              changed = true;
+            }
+          }
+        }
+      });
+
+      return changed ? next : prev;
+    });
+  }, [hassEntities, tiles]);
 
   // 2. Load Tiles when connection is ready or if it fails/remains null (standalone)
   useEffect(() => {
@@ -194,13 +238,18 @@ function App() {
 
         const mergedData = finalTiles.map(tile => {
           const initialMatch = INITIAL_TILES.find(it => it.id === tile.id);
+          const hasEntity = !!(tile.entityId || initialMatch?.entityId);
+
           return {
             ...tile,
             type: tile.type || 'info',
             entityId: tile.entityId || initialMatch?.entityId,
             isOn: tile.isOn !== undefined ? tile.isOn : false,
             value: tile.value !== undefined ? tile.value : 0,
-            graphData: (tile.graphData && tile.graphData.length > 0) ? tile.graphData : mockGraphData
+            // Only use mock data if NO entity is linked
+            graphData: (tile.graphData && tile.graphData.length > 0)
+              ? tile.graphData
+              : (hasEntity ? [] : mockGraphData)
           };
         });
 
@@ -525,10 +574,15 @@ function App() {
         );
       }
       case 'graph': {
-        const currentValue = entity ? `${entity.state}${entity.attributes?.unit_of_measurement || ''}` : (tile.content || '');
+        const unit = entity?.attributes?.unit_of_measurement || '';
+        const currentValue = entity ? `${entity.state} ${unit}`.trim() : (tile.content || '');
+        // Combine persisted graph data with live history
+        const history = liveHistory[tile.id] || [];
+        const displayData = history.length > 0 ? history : (tile.entityId ? [] : (tile.graphData || []));
+
         return (
           <GraphContent
-            data={tile.graphData || []}
+            data={displayData}
             label={entity?.attributes?.friendly_name || tile.title}
             currentValue={currentValue}
             color={tile.graphColor || '#00ff88'}
