@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/SomonGitHub/hacs-nexura/master/docs/images/desktop.png" alt="Nexura Dashboard Desktop View" width="100%"/>
+  <img src="https://raw.githubusercontent.com/SomonGitHub/hacs-nexura/master/docs/images/Capture d'écran Nexura 1.png" alt="Nexura Dashboard Desktop View" width="100%"/>
 </p>
 
 # Nexura Dashboard
@@ -34,7 +34,7 @@ Nexura est une intégration personnalisée (Custom Component) pour Home Assistan
       <b>Mode Bureau / Tablette (Édition)</b><br>
       Redimensionnez (📐), Masquez (❌), ou Déplacez (⠿) vos entités facilement.
       <br><br>
-      <img src="https://raw.githubusercontent.com/SomonGitHub/hacs-nexura/master/docs/images/desktop.png" alt="Nexura Desktop Edit Mode"/>
+      <img src="https://raw.githubusercontent.com/SomonGitHub/hacs-nexura/master/docs/images/Capture d'écran Nexura 2.png" alt="Nexura Desktop Edit Mode"/>
     </td>
     <td width="50%">
       <b>Affichage Mobile Adapté</b><br>
