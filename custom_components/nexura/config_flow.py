@@ -10,7 +10,7 @@ from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import selector
 
-from .const import DOMAIN, CONF_THEME, THEME_AUTO, THEMES
+from .const import DOMAIN, CONF_THEME, THEME_AUTO, THEMES, CONF_SCREENSAVER
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -43,6 +43,10 @@ class NexuraOptionsFlowHandler(config_entries.OptionsFlow):
                             translation_key=CONF_THEME,
                         )
                     ),
+                    vol.Optional(
+                        CONF_SCREENSAVER,
+                        default=self.config_entry.options.get(CONF_SCREENSAVER, True),
+                    ): selector.BooleanSelector(),
                 }
             ),
         )

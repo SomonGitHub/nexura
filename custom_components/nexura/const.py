@@ -5,6 +5,7 @@ STORAGE_KEY = f"{DOMAIN}.board_layout"
 STORAGE_VERSION = 1
 
 CONF_THEME = "theme"
+CONF_SCREENSAVER = "screensaver_enabled"
 
 THEME_AUTO = "auto"
 THEME_DARK = "dark"

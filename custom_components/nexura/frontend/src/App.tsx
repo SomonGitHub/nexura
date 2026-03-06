@@ -116,6 +116,7 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [theme, setTheme] = useState<'auto' | 'dark' | 'light'>('auto');
+  const [screensaverEnabled, setScreensaverEnabled] = useState(true);
 
   const [isEditMode, setIsEditMode] = useState(false);
   const [dashboardTitle, setDashboardTitle] = useState('');
@@ -255,14 +256,15 @@ function App() {
 
         setTiles(mergedData);
         setLayouts(savedLayouts);
-        // Load Config Theme
+        // Load Config
         try {
-          const configRes = await callHAWebSocket('nexura/config/get') as { theme: 'auto' | 'dark' | 'light' };
-          if (configRes && configRes.theme) {
-            setTheme(configRes.theme);
+          const configRes = await callHAWebSocket('nexura/config/get') as { theme: 'auto' | 'dark' | 'light', screensaver_enabled?: boolean };
+          if (configRes) {
+            if (configRes.theme) setTheme(configRes.theme);
+            if (configRes.screensaver_enabled !== undefined) setScreensaverEnabled(configRes.screensaver_enabled);
           }
         } catch (e) {
-          console.warn("Could not load theme config", e);
+          console.warn("Could not load nexura config", e);
         }
 
       } catch (e: unknown) {
@@ -786,7 +788,7 @@ function App() {
         />
       </div>
 
-      {isInactive && !isEditMode && <ScreenSaver entities={hassEntities} />}
+      {isInactive && !isEditMode && screensaverEnabled && <ScreenSaver entities={hassEntities} />}
     </div >
   )
 }

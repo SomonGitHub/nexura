@@ -24,7 +24,8 @@
                 "title": "Nexura Options",
                 "description": "Configure Nexura settings.",
                 "data": {
-                    "theme": "Preferred Theme"
+                    "theme": "Preferred Theme",
+                    "screensaver_enabled": "Enable Screensaver"
                 }
             }
         }

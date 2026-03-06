@@ -29,17 +29,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     )
 
     # Register Side Panel
-    frontend.async_register_built_in_panel(
-        hass,
-        component_name="iframe",
-        sidebar_title="Nexura",
-        sidebar_icon="mdi:home-assistant",
-        frontend_url_path="nexura",
-        config={
-            "url": "/nexura_static/index.html"
-        },
-        require_admin=False
-    )
+    try:
+        frontend.async_register_built_in_panel(
+            hass,
+            component_name="iframe",
+            sidebar_title="Nexura",
+            sidebar_icon="mdi:home-assistant",
+            frontend_url_path="nexura",
+            config={
+                "url": "/nexura_static/index.html"
+            },
+            require_admin=False
+        )
+    except ValueError:
+        # Panel already registered, ignore
+        pass
 
     entry.async_on_unload(entry.add_update_listener(update_listener))
 
@@ -105,7 +109,14 @@ async def ws_get_config(hass: HomeAssistant, connection: websocket_api.ActiveCon
     if entries:
         entry = entries[0]
         theme = entry.options.get("theme", "auto")
-        connection.send_result(msg["id"], {"theme": theme})
+        screensaver_enabled = entry.options.get("screensaver_enabled", True)
+        connection.send_result(msg["id"], {
+            "theme": theme,
+            "screensaver_enabled": screensaver_enabled
+        })
     else:
-        connection.send_result(msg["id"], {"theme": "auto"})
+        connection.send_result(msg["id"], {
+            "theme": "auto",
+            "screensaver_enabled": True
+        })
 
