@@ -6,8 +6,6 @@
 
 Nexura est une intégration personnalisée (Custom Component) pour Home Assistant offrant un **tableau de bord nouvelle génération**. Conçu avec React et la philosophie "Bento UI", il propose une interface utilisateur fluide, moderne (Glassmorphism), hautement personnalisable et **totalement responsive**.
 
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=for-the-badge)](https://github.com/hacs/integration)
-
 ## 🌟 Fonctionnalités Principales
 
 *   📱 **Agencements Indépendants (Multi-Layout)** : Nexura enregistre la disposition de vos tuiles séparément pour vos écrans de **Bureau**, **Tablette** et **Mobile**. Ce que vous modifiez sur votre téléphone n'affecte pas l'arrangement de votre grand écran mural !
