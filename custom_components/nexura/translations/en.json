@@ -25,7 +25,9 @@
                 "description": "Configure Nexura settings.",
                 "data": {
                     "theme": "Preferred Theme",
-                    "screensaver_enabled": "Enable Screensaver"
+                    "screensaver_enabled": "Enable Screensaver",
+                    "day_night_cycle": "Day/Night Color Cycle",
+                    "weather_effects": "Weather Visual Effects"
                 }
             }
         }

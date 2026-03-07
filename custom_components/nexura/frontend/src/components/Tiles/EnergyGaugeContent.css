@@ -1,0 +1,70 @@
+/* ============================================================
+ * EnergyGaugeContent — Circular SVG arc gauge for energy data.
+ *
+ * Displays a single energy value (e.g. grid consumption) as a
+ * 270° arc with dynamic gradient coloring (green → orange → red).
+ * ============================================================ */
+
+.energy-gauge {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    position: relative;
+}
+
+.energy-gauge svg {
+    width: 100%;
+    height: auto;
+    max-width: 160px;
+}
+
+/* Central value overlay */
+.gauge-value-container {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+}
+
+.gauge-value {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1;
+}
+
+.gauge-unit {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.gauge-label {
+    font-size: 0.65rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: 4px;
+}
+
+/* Arc animation */
+.gauge-arc-bg {
+    fill: none;
+    stroke: rgba(255, 255, 255, 0.06);
+    stroke-linecap: round;
+}
+
+.gauge-arc-fill {
+    fill: none;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 1s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+body.theme-light .gauge-arc-bg {
+    stroke: rgba(0, 0, 0, 0.06);
+}

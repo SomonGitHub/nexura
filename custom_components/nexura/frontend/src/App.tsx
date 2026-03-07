@@ -9,16 +9,15 @@ import {
   defaultDropAnimationSideEffects,
   closestCorners,
   type DragStartEvent,
-  type DragOverEvent
+  type DragEndEvent
 } from '@dnd-kit/core'
 import {
-  arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
   rectSortingStrategy,
 } from '@dnd-kit/sortable'
 import type { Connection, HassEntities } from 'home-assistant-js-websocket';
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { connectHass, executeService, type HassConnectionState } from './services/hass';
 import { BentoGrid } from './components/BentoGrid/BentoGrid'
@@ -32,23 +31,32 @@ import { Sidebar } from './components/Sidebar/Sidebar'
 import { ScreenSaver } from './components/ScreenSaver/ScreenSaver'
 import { WeatherContent } from './components/Tiles/WeatherContent'
 import { CoverContent } from './components/Tiles/CoverContent'
+import { MediaContent } from './components/Tiles/MediaContent'
+import { EnergyGaugeContent } from './components/Tiles/EnergyGaugeContent'
+import { EnergyFlowContent } from './components/Tiles/EnergyFlowContent'
+import { WeatherOverlay, type WeatherEffectsMode } from './components/WeatherOverlay/WeatherOverlay'
 import { getHaloType } from './hooks/useTileStatus'
 import { getAutoIcon, getAutoColor, getRoomIcon } from './utils/entityMapping'
 import { useInactivity } from './hooks/useInactivity'
+import { useTimeGradient } from './hooks/useTimeGradient'
 import './components/BentoTile/BentoTile.css';
 import './components/Sidebar/Sidebar.css';
 import './App.css'
 
-export type TileType = 'info' | 'toggle' | 'slider' | 'graph' | 'cover' | 'spacer';
+export type TileType = 'info' | 'toggle' | 'slider' | 'graph' | 'cover' | 'spacer' | 'media' | 'energy-gauge' | 'energy-flow';
 export type Breakpoint = 'desktop' | 'tablet' | 'mobile';
 
 export interface LayoutEntry {
   id: string;
-  size: TileSize;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
   hidden?: boolean;
 }
 
-export type LayoutsData = Record<Breakpoint, LayoutEntry[]>;
+export type ViewLayouts = Record<Breakpoint, LayoutEntry[]>;
+export type DashboardLayouts = Record<string, ViewLayouts>;
 
 export interface TileData {
   id: string;
@@ -65,6 +73,12 @@ export interface TileData {
   icon?: string;
   color?: string;
   isFavorite?: boolean;
+  // Energy tile fields
+  maxPower?: number;
+  solarEntityId?: string;
+  gridEntityId?: string;
+  batteryEntityId?: string;
+  batteryLevelEntityId?: string;
 }
 
 const useBreakpoint = (): Breakpoint => {
@@ -104,13 +118,130 @@ const INITIAL_TILES: TileData[] = [
   { id: 'cuisine_light', size: 'rect', type: 'slider', title: 'Lumière Cuisine', entityId: 'light.cuisine', room: 'Cuisine', icon: 'Settings', color: '#ffffff' },
 ];
 
-const STORAGE_KEY = 'nexura_dashboard_tiles_v2';
+const collidesWith = (a: LayoutEntry, b: LayoutEntry): boolean => {
+  if (a.id === b.id) return false;
+  return (
+    a.x < b.x + b.w &&
+    a.x + a.w > b.x &&
+    a.y < b.y + b.h &&
+    a.y + a.h > b.y
+  );
+};
+
+const calculateGridOffset = (delta: number, step: number, threshold = 0.7): number => {
+  const fraction = delta / step;
+  const absFract = Math.abs(fraction);
+  const whole = Math.floor(absFract);
+  const remainder = absFract - whole;
+
+  if (remainder < threshold) {
+    return (fraction >= 0 ? whole : -whole);
+  } else {
+    return (fraction >= 0 ? whole + 1 : -(whole + 1));
+  }
+};
+
+const compactLayout = (layout: LayoutEntry[], activeId?: string | null): LayoutEntry[] => {
+  const activeTile = activeId ? layout.find(l => l.id === activeId) : null;
+  const sorted = [...layout].sort((a, b) => a.y - b.y || a.x - b.x);
+  const result: LayoutEntry[] = [];
+
+  // Place the active tile first if it exists to make it the priority
+  if (activeTile) {
+    result.push(activeTile);
+  }
+
+  sorted.forEach(tile => {
+    if (tile.id === activeId) return;
+
+    let currentTile = { ...tile };
+    // Only increment Y if there is a collision with already placed tiles
+    while (result.some(other => collidesWith(currentTile, other))) {
+      currentTile.y++;
+    }
+    result.push(currentTile);
+  });
+
+  return result;
+};
+
+const getSizeDimensions = (size: TileSize = 'small'): { w: number, h: number } => {
+  switch (size) {
+    case 'mini': return { w: 2, h: 1 };
+    case 'small': return { w: 2, h: 2 };
+    case 'rect': return { w: 4, h: 2 };
+    case 'square': return { w: 4, h: 4 };
+    case 'large-rect': return { w: 8, h: 4 };
+    case 'large-square': return { w: 8, h: 8 };
+    default: return { w: 2, h: 2 };
+  }
+};
+
+const migrateLayouts = (tiles: TileData[], activeView: string): ViewLayouts => {
+  const breakpoints: Breakpoint[] = ['desktop', 'tablet', 'mobile'];
+  const colsConfig = { desktop: 12, tablet: 8, mobile: 4 };
+  const result: ViewLayouts = { desktop: [], tablet: [], mobile: [] };
+
+  breakpoints.forEach(bp => {
+    let currentX = 0;
+    let currentY = 0;
+    const maxCols = colsConfig[bp];
+    const rowHeights: number[] = new Array(maxCols).fill(0);
+
+    // Filter tiles relevant to this view
+    const viewTiles = tiles.filter(t => {
+      if (activeView === 'favorites') return t.isFavorite;
+      if (activeView === 'Inconnue') return !t.room || t.room.trim() === '';
+      return t.room === activeView;
+    });
+
+    viewTiles.forEach((tile: any) => {
+      const dimensions = getSizeDimensions(tile.size);
+
+      if (currentX + dimensions.w > maxCols) {
+        currentX = 0;
+        currentY = Math.max(...rowHeights);
+      }
+
+      result[bp].push({
+        id: tile.id,
+        x: currentX,
+        y: currentY,
+        w: Math.min(dimensions.w, maxCols),
+        h: dimensions.h
+      });
+
+      for (let i = 0; i < dimensions.w && (currentX + i) < maxCols; i++) {
+        rowHeights[currentX + i] = currentY + dimensions.h;
+      }
+      currentX += dimensions.w;
+    });
+  });
+
+  return result;
+};
+const STORAGE_KEY = 'nexura_dashboard_tiles_v4';
+// Bumped for view-specific layouts
+
+/**
+ * Drop animation config — defined outside the component since it has no
+ * reactive dependencies. Avoids creating a new object on every render.
+ */
+const DROP_ANIMATION = {
+  sideEffects: defaultDropAnimationSideEffects({
+    styles: {
+      active: {
+        opacity: '0.4',
+      },
+    },
+  }),
+};
 
 function App() {
   const { t } = useTranslation()
 
   const [tiles, setTiles] = useState<TileData[]>([]);
-  const [layouts, setLayouts] = useState<LayoutsData>({ desktop: [], tablet: [], mobile: [] });
+  const [layouts, setLayouts] = useState<DashboardLayouts>({});
   const breakpoint = useBreakpoint();
 
   const [loading, setLoading] = useState(true);
@@ -121,7 +252,7 @@ function App() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [dashboardTitle, setDashboardTitle] = useState('');
   const [backupTiles, setBackupTiles] = useState<TileData[]>([]);
-  const [backupLayouts, setBackupLayouts] = useState<LayoutsData>({ desktop: [], tablet: [], mobile: [] });
+  const [backupLayouts, setBackupLayouts] = useState<DashboardLayouts>({});
   const [backupTitle, setBackupTitle] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
@@ -129,14 +260,18 @@ function App() {
   const [activeView, setActiveView] = useState('favorites');
   const [tileToEdit, setTileToEdit] = useState<TileData | null>(null);
 
+  // Adaptive Ambiance settings
+  const [dayNightCycle, setDayNightCycle] = useState(true);
+  const [weatherEffects, setWeatherEffects] = useState<WeatherEffectsMode>('all');
+
   // Hass states
   const [hassEntities, setHassEntities] = useState<HassEntities>({});
   const [hassConnection, setHassConnection] = useState<Connection | null>(null);
   const [hassState, setHassState] = useState<HassConnectionState>('connecting');
   const [liveHistory, setLiveHistory] = useState<Record<string, { time: string; value: number }[]>>({});
 
-  // Unified WebSocket Caller
-  const callHAWebSocket = async (type: string, payload?: Record<string, unknown>): Promise<unknown> => {
+  // Unified WebSocket Caller (memoized to keep downstream useCallback deps stable)
+  const callHAWebSocket = useCallback(async (type: string, payload?: Record<string, unknown>): Promise<unknown> => {
     if (hassConnection) {
       // sendMessagePromise is on Connection
       return await hassConnection.sendMessagePromise({ type, ...payload });
@@ -148,11 +283,15 @@ function App() {
       const saved = localStorage.getItem(STORAGE_KEY);
       return saved ? JSON.parse(saved) : { layout: [], title: '' };
     } else if (type === 'nexura/board/save') {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ layout: payload?.layout, title: payload?.title }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        layout: payload?.layout,
+        layouts: payload?.layouts,
+        title: payload?.title
+      }));
       return { success: true };
     }
     throw new Error("Unknown command");
-  };
+  }, [hassConnection]);
 
   useEffect(() => {
     // 1. Connect to HA WebSocket
@@ -212,29 +351,34 @@ function App() {
     const loadTiles = async () => {
       setLoading(true);
       try {
-        const data = await callHAWebSocket('nexura/board/get') as { layout: TileData[], layouts?: LayoutsData, title?: string };
+        const data = await callHAWebSocket('nexura/board/get') as {
+          layout: TileData[],
+          layouts?: DashboardLayouts,
+          title?: string
+        };
         let layout: TileData[] = [];
-        let savedLayouts: LayoutsData = { desktop: [], tablet: [], mobile: [] };
-        let title = '';
+        let savedLayouts: DashboardLayouts = data?.layouts || {};
+        let title = data?.title || '';
 
-        if (data && typeof data === 'object') {
-          layout = data.layout || [];
-          savedLayouts = data.layouts || { desktop: [], tablet: [], mobile: [] };
-          title = data.title || '';
-        }
-
+        layout = data?.layout || [];
         setDashboardTitle(title);
 
         const finalTiles = (Array.isArray(layout) && layout.length > 0) ? layout : INITIAL_TILES;
 
-        // Compute combined layouts if missing
-        if (!savedLayouts.desktop || savedLayouts.desktop.length === 0) {
-          const defaultLayout: LayoutEntry[] = finalTiles.map(t => ({ id: t.id, size: t.size || 'small' }));
-          savedLayouts = {
-            desktop: [...defaultLayout],
-            tablet: [...defaultLayout],
-            mobile: [...defaultLayout]
-          };
+        // Auto-migration to v4 (coordinate system) if needed
+        const isLegacyFormat = Object.keys(savedLayouts).length === 0 ||
+          !Object.values(savedLayouts).some(view => (view as any).desktop);
+
+        if (isLegacyFormat) {
+          console.log("[Nexura] Migrating to view-specific coordinate layouts");
+          savedLayouts = {}; // Reset to start fresh migration
+          // We need to identify all views to migrate
+          const views = new Set(['favorites']);
+          finalTiles.forEach(t => { if (t.room) views.add(t.room); else views.add('Inconnue'); });
+
+          views.forEach(view => {
+            savedLayouts[view] = migrateLayouts(finalTiles, view);
+          });
         }
 
         const mergedData = finalTiles.map(tile => {
@@ -258,10 +402,17 @@ function App() {
         setLayouts(savedLayouts);
         // Load Config
         try {
-          const configRes = await callHAWebSocket('nexura/config/get') as { theme: 'auto' | 'dark' | 'light', screensaver_enabled?: boolean };
+          const configRes = await callHAWebSocket('nexura/config/get') as {
+            theme: 'auto' | 'dark' | 'light',
+            screensaver_enabled?: boolean,
+            day_night_cycle?: boolean,
+            weather_effects?: WeatherEffectsMode,
+          };
           if (configRes) {
             if (configRes.theme) setTheme(configRes.theme);
             if (configRes.screensaver_enabled !== undefined) setScreensaverEnabled(configRes.screensaver_enabled);
+            if (configRes.day_night_cycle !== undefined) setDayNightCycle(configRes.day_night_cycle);
+            if (configRes.weather_effects) setWeatherEffects(configRes.weather_effects);
           }
         } catch (e) {
           console.warn("Could not load nexura config", e);
@@ -299,26 +450,13 @@ function App() {
     })
   );
 
-  const handleDragStart = (event: DragStartEvent) => {
+  const handleDragStart = useCallback((event: DragStartEvent) => {
     setActiveId(event.active.id as string);
-  };
+  }, []);
 
-  const handleDragOver = (event: DragOverEvent) => {
-    const { active, over } = event;
-    if (!over) return;
-
-    if (active.id !== over.id) {
-      setLayouts((prev) => {
-        const currentLayout = prev[breakpoint] || [];
-        const oldIndex = currentLayout.findIndex((t) => t.id === active.id);
-        const newIndex = currentLayout.findIndex((t) => t.id === over.id);
-
-        if (oldIndex === -1 || newIndex === -1) return prev;
-
-        const newLayout = arrayMove(currentLayout, oldIndex, newIndex);
-        return { ...prev, [breakpoint]: newLayout };
-      });
-    }
+  const handleDragOver = () => {
+    // We handle updates in DragEnd for stability in this custom grid implementation.
+    // If we want real-time "pushing", we would implement it here.
   };
 
   const handleEditClick = () => {
@@ -342,67 +480,170 @@ function App() {
     setIsEditMode(false);
   };
 
-  const handleDeleteTile = (id: string) => {
+  const handleDeleteTile = useCallback((id: string) => {
     setTiles(prev => prev.filter(t => t.id !== id));
-  };
+    setLayouts(prev => {
+      const updated = { ...prev };
+      Object.keys(updated).forEach(view => {
+        updated[view] = {
+          desktop: updated[view].desktop.filter(l => l.id !== id),
+          tablet: updated[view].tablet.filter(l => l.id !== id),
+          mobile: updated[view].mobile.filter(l => l.id !== id),
+        };
+      });
+      return updated;
+    });
+  }, []);
 
-  const handleOpenEditModal = (tile: TileData) => {
+  const handleOpenEditModal = useCallback((tile: TileData) => {
     setTileToEdit(tile);
     setIsAddModalOpen(true);
-  };
+  }, []);
 
   const handleAddTile = (newTile: TileData) => {
     if (tileToEdit) {
       // Update existing tile
       setTiles(prev => prev.map(t => t.id === tileToEdit.id ? { ...newTile, id: t.id } : t));
+      setLayouts(prev => {
+        const updated = { ...prev };
+        const viewLayout = updated[activeView] || { desktop: [], tablet: [], mobile: [] };
+
+        // Update layout entries for the specific tileToEdit.id
+        const updateLayoutEntry = (layoutArr: LayoutEntry[]) => layoutArr.map(l =>
+          l.id === tileToEdit.id ? { ...l, w: getSizeDimensions(newTile.size).w, h: getSizeDimensions(newTile.size).h } : l
+        );
+
+        updated[activeView] = {
+          desktop: updateLayoutEntry(viewLayout.desktop),
+          tablet: updateLayoutEntry(viewLayout.tablet),
+          mobile: updateLayoutEntry(viewLayout.mobile),
+        };
+
+        return updated;
+      });
       setTileToEdit(null);
     } else {
       // Add new tile
       setTiles(prev => [...prev, newTile]);
-      setLayouts(prev => ({
-        desktop: [...prev.desktop, { id: newTile.id, size: newTile.size || 'small' }],
-        tablet: [...prev.tablet, { id: newTile.id, size: newTile.size || 'small' }],
-        mobile: [...prev.mobile, { id: newTile.id, size: newTile.size || 'small' }],
-      }));
+      const dims = getSizeDimensions(newTile.size);
+      setLayouts(prev => {
+        const updated = { ...prev };
+        const viewLayout = updated[activeView] || { desktop: [], tablet: [], mobile: [] };
+        updated[activeView] = {
+          ...viewLayout,
+          desktop: [...viewLayout.desktop, { id: newTile.id, x: 0, y: 0, w: dims.w, h: dims.h }],
+          tablet: [...viewLayout.tablet, { id: newTile.id, x: 0, y: 0, w: Math.min(dims.w, 8), h: dims.h }],
+          mobile: [...viewLayout.mobile, { id: newTile.id, x: 0, y: 0, w: Math.min(dims.w, 4), h: dims.h }],
+        };
+
+        if (newTile.isFavorite && activeView !== 'favorites') {
+          const favLayout = updated.favorites || { desktop: [], tablet: [], mobile: [] };
+          updated.favorites = {
+            desktop: [...favLayout.desktop, { id: newTile.id, x: 0, y: 0, w: dims.w, h: dims.h }],
+            tablet: [...favLayout.tablet, { id: newTile.id, x: 0, y: 0, w: Math.min(dims.w, 8), h: dims.h }],
+            mobile: [...favLayout.mobile, { id: newTile.id, x: 0, y: 0, w: Math.min(dims.w, 4), h: dims.h }],
+          };
+        }
+
+        return updated;
+      });
     }
     setIsAddModalOpen(false);
   };
 
-  const handleResizeTile = (id: string) => {
+  const handleResizeTile = useCallback((id: string) => {
     setLayouts(prev => {
-      const currentLayout = prev[breakpoint] || [];
-      const updatedLayout = currentLayout.map(t => {
+      const updated = { ...prev };
+      const viewLayout = updated[activeView] || { desktop: [], tablet: [], mobile: [] };
+      const currentLayout = viewLayout[breakpoint];
+
+      const updatedEntries = currentLayout.map(t => {
         if (t.id === id) {
           const tileInfo = tiles.find(ti => ti.id === id);
-          let sizes: TileSize[] = ['small', 'rect', 'square', 'large-rect', 'large-square'];
+          const sizes: TileSize[] = ['small', 'rect', 'square', 'large-rect', 'large-square'];
 
-          if (tileInfo?.type === 'cover' || tileInfo?.type === 'slider') {
-            sizes = sizes.filter(s => s !== 'small');
+          // Find which "standard" size this matches (approx)
+          let currentSize: TileSize = 'small';
+          for (const s of sizes) {
+            const d = getSizeDimensions(s);
+            if (d.w === t.w && d.h === t.h) {
+              currentSize = s;
+              break;
+            }
           }
 
-          const currentIndex = sizes.indexOf(t.size);
-          const nextSize = sizes[(currentIndex + 1) % sizes.length];
-          return { ...t, size: nextSize };
+          if (tileInfo?.type === 'cover' || tileInfo?.type === 'slider' || tileInfo?.type === 'media') {
+            // Skip small if it was allowed somehow
+          }
+
+          const nextIndex = (sizes.indexOf(currentSize) + 1) % sizes.length;
+          const nextSize = sizes[nextIndex];
+          const nextDims = getSizeDimensions(nextSize);
+
+          const maxCols = { desktop: 12, tablet: 8, mobile: 4 }[breakpoint];
+
+          return {
+            ...t,
+            w: Math.min(nextDims.w, maxCols),
+            h: nextDims.h
+          };
         }
         return t;
       });
-      return { ...prev, [breakpoint]: updatedLayout };
+
+      const compacted = compactLayout(updatedEntries, id);
+      updated[activeView] = {
+        ...viewLayout,
+        [breakpoint]: compacted
+      };
+      return updated;
     });
-  };
+  }, [activeView, breakpoint, tiles]);
 
-  const handleDragEnd = () => {
-    const currentTiles = [...tiles];
-    const dataToSave = { layout: currentTiles, title: dashboardTitle };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, delta } = event;
+    const draggedId = active.id as string;
 
-    if (!isEditMode) {
-      callHAWebSocket('nexura/board/save', dataToSave)
-        .catch((err: unknown) => console.error("Failed to save to HA", err));
-    }
+    setLayouts(prev => {
+      const updated = { ...prev };
+      const viewLayout = updated[activeView] || { desktop: [], tablet: [], mobile: [] };
+      const currentLayout = viewLayout[breakpoint];
+
+      const tileLayout = currentLayout.find(l => l.id === draggedId);
+      if (!tileLayout) return prev;
+
+      const cols = { desktop: 12, tablet: 8, mobile: 4 }[breakpoint];
+
+      const gridElement = document.querySelector('.bento-grid');
+      const containerWidth = gridElement ? gridElement.clientWidth : window.innerWidth - 64;
+
+      const cellWidth = containerWidth / cols;
+      const cellHeight = 96; // 80px row height + 16px gap
+
+      const dx = calculateGridOffset(delta.x, cellWidth, 0.6);
+      const dy = calculateGridOffset(delta.y, cellHeight, 0.7);
+
+      const newX = Math.max(0, Math.min(cols - tileLayout.w, tileLayout.x + dx));
+      const newY = Math.max(0, tileLayout.y + dy);
+
+      const nextEntries = currentLayout.map(l =>
+        l.id === draggedId ? { ...l, x: newX, y: newY } : l
+      );
+
+      const compacted = compactLayout(nextEntries, draggedId);
+
+      updated[activeView] = {
+        ...viewLayout,
+        [breakpoint]: compacted
+      };
+
+      return updated;
+    });
+
     setActiveId(null);
-  };
+  }, [activeView, breakpoint]);
 
-  const handleToggle = (id: string, newState: boolean, entityId?: string) => {
+  const handleToggle = useCallback((id: string, newState: boolean, entityId?: string) => {
     setTiles(prev => {
       const updated = prev.map(t => t.id === id ? { ...t, isOn: newState } : t);
       const dataToSave = { layout: updated, title: dashboardTitle };
@@ -416,7 +657,7 @@ function App() {
       const service = newState ? 'turn_on' : 'turn_off';
       executeService(hassConnection, domain, service, { entity_id: entityId });
     }
-  };
+  }, [dashboardTitle, hassConnection, callHAWebSocket]);
 
   const handleSliderChange = (id: string, newValue: number, entityId?: string) => {
     setTiles(prev => {
@@ -443,6 +684,21 @@ function App() {
       executeService(hassConnection, 'cover', service, {
         entity_id: entityId
       });
+    }
+  };
+
+  const handleMediaAction = (action: 'play' | 'pause' | 'previous' | 'next' | 'power', entityId?: string) => {
+    if (entityId) {
+      const domain = 'media_player';
+      let service = '';
+      switch (action) {
+        case 'play': service = 'media_play'; break;
+        case 'pause': service = 'media_pause'; break;
+        case 'previous': service = 'media_previous_track'; break;
+        case 'next': service = 'media_next_track'; break;
+        case 'power': service = 'turn_off'; break;
+      }
+      executeService(hassConnection, domain, service, { entity_id: entityId });
     }
   };
 
@@ -477,19 +733,23 @@ function App() {
     return sortedRooms;
   }, [tiles]);
 
-  const currentLayoutEntries = layouts[breakpoint] || [];
+  // Memoize to avoid recalculating on every render (drag frames)
+  const currentLayoutEntries = useMemo(
+    () => layouts[activeView]?.[breakpoint] || [],
+    [layouts, activeView, breakpoint]
+  );
 
   const orderedAndFilteredTiles = useMemo(() => {
-    const result: (TileData & { size: TileSize; hidden?: boolean })[] = [];
+    const result: (TileData & { layout: LayoutEntry })[] = [];
 
     for (const entry of currentLayoutEntries) {
       const tileData = tiles.find(t => t.id === entry.id);
       if (!tileData) continue;
 
-      const combined = { ...tileData, size: entry.size, hidden: entry.hidden };
+      const combined = { ...tileData, layout: entry };
 
       // Filter by visibility (hide hidden tiles unless in edit mode)
-      if (combined.hidden && !isEditMode) continue;
+      if (entry.hidden && !isEditMode) continue;
 
       // Filter by active view (room/favorites)
       if (activeView === 'favorites') {
@@ -514,23 +774,51 @@ function App() {
     return alerts;
   }, [tiles, rooms, hassEntities]);
 
-  const handleToggleFavorite = (id: string) => {
-    setTiles(prev => prev.map(t => t.id === id ? { ...t, isFavorite: !t.isFavorite } : t));
-  };
+  const handleToggleFavorite = useCallback((id: string) => {
+    setTiles(prev => {
+      const updated = prev.map(t => t.id === id ? { ...t, isFavorite: !t.isFavorite } : t);
+      const tile = updated.find(t => t.id === id);
+
+      if (tile?.isFavorite) {
+        // Add to favorites layout if not already there
+        setLayouts(lPrev => {
+          if (lPrev.favorites?.desktop.some(entry => entry.id === id)) return lPrev;
+
+          const dims = getSizeDimensions(tile.size);
+          const updatedLayouts = { ...lPrev };
+          const favLayout = updatedLayouts.favorites || { desktop: [], tablet: [], mobile: [] };
+
+          updatedLayouts.favorites = {
+            desktop: [...favLayout.desktop, { id, x: 0, y: 0, w: dims.w, h: dims.h }],
+            tablet: [...favLayout.tablet, { id, x: 0, y: 0, w: Math.min(dims.w, 8), h: dims.h }],
+            mobile: [...favLayout.mobile, { id, x: 0, y: 0, w: Math.min(dims.w, 4), h: dims.h }],
+          };
+          return updatedLayouts;
+        });
+      }
+      return updated;
+    });
+  }, []);
 
   const sortableItems = useMemo(() => orderedAndFilteredTiles.map(t => t.id), [orderedAndFilteredTiles]);
 
   const activeTile = activeId ? orderedAndFilteredTiles.find(t => t.id === activeId) : null;
 
-  const dropAnimation = {
-    sideEffects: defaultDropAnimationSideEffects({
-      styles: {
-        active: {
-          opacity: '0.4',
-        },
-      },
-    }),
-  };
+  // Tracks whether any tile drag is in progress (used to disable
+  // expensive animations on sibling tiles during drag)
+  const isAnyDragging = activeId !== null;
+
+  // Apply day/night gradient to body background
+  // (must be called before any conditional returns — rules of hooks)
+  useTimeGradient(dayNightCycle);
+
+  // Find the first weather entity for overlay effects
+  const weatherEntityState = useMemo(() => {
+    const weatherEntity = Object.entries(hassEntities).find(
+      ([id]) => id.startsWith('weather.')
+    );
+    return weatherEntity ? weatherEntity[1].state : '';
+  }, [hassEntities]);
 
   if (loading) {
     return (
@@ -637,17 +925,54 @@ function App() {
           </>
         );
       }
+      case 'media':
+        return (
+          <MediaContent
+            entity={entity}
+            onAction={(action) => handleMediaAction(action, tile.entityId)}
+          />
+        );
       case 'cover':
         return <CoverContent
           entity={entity}
           onAction={(action) => handleCoverAction(action, tile.entityId)}
           size={tile.size}
         />;
+      case 'energy-gauge': {
+        const power = entity ? parseFloat(entity.state) || 0 : 0;
+        const unit = entity?.attributes?.unit_of_measurement || 'W';
+        return (
+          <EnergyGaugeContent
+            value={power}
+            maxValue={tile.maxPower || 9000}
+            unit={unit}
+            label={entity?.attributes?.friendly_name || tile.title}
+          />
+        );
+      }
+      case 'energy-flow':
+        return (
+          <EnergyFlowContent
+            hassEntities={hassEntities}
+            solarEntityId={tile.solarEntityId}
+            gridEntityId={tile.gridEntityId || tile.entityId}
+            batteryEntityId={tile.batteryEntityId}
+            batteryLevelEntityId={tile.batteryLevelEntityId}
+            homeEntityId={undefined}
+          />
+        );
     }
   };
 
   return (
     <div className={`app-layout ${isFullScreen ? 'is-fullscreen' : ''}`} >
+      {/* Adaptive Ambiance — weather overlay effects */}
+      {weatherEffects !== 'off' && weatherEntityState && (
+        <WeatherOverlay
+          weatherState={weatherEntityState}
+          mode={weatherEffects}
+        />
+      )}
       <Sidebar
         rooms={rooms}
         activeView={activeView}
@@ -728,7 +1053,7 @@ function App() {
                         <BentoTile
                           key={tile.id}
                           id={tile.id}
-                          size={tile.size}
+                          layout={tile.layout}
                           title={tile.title}
                           type={tile.type}
                           icon={resolvedIcon}
@@ -737,13 +1062,17 @@ function App() {
                           hassEntities={hassEntities}
                           isEditMode={isEditMode}
                           isFavorite={tile.isFavorite}
-                          className={tile.hidden ? 'tile-hidden' : ''}
+                          className={tile.layout.hidden ? 'tile-hidden' : ''}
                           onDelete={() => handleDeleteTile(tile.id)}
                           onResize={() => handleResizeTile(tile.id)}
                           onEdit={() => handleOpenEditModal(tile)}
                           onToggleFavorite={() => handleToggleFavorite(tile.id)}
-                          noPadding={tile.entityId?.startsWith('weather.')}
-                          hideHeader={tile.entityId?.startsWith('weather.') || tile.type === 'graph'}
+                          onClick={() => {
+                            if (tile.type === 'toggle') handleToggle(tile.id, !tile.isOn, tile.entityId);
+                          }}
+                          noPadding={tile.entityId?.startsWith('weather.') || tile.type === 'media'}
+                          hideHeader={tile.entityId?.startsWith('weather.') || tile.type === 'graph' || tile.type === 'media'}
+                          isAnyDragging={isAnyDragging}
                         >
                           {renderTileContent(tile)}
                         </BentoTile>
@@ -754,11 +1083,11 @@ function App() {
               </motion.div>
             </AnimatePresence>
 
-            <DragOverlay dropAnimation={dropAnimation} adjustScale={false}>
+            <DragOverlay dropAnimation={DROP_ANIMATION} adjustScale={false}>
               {activeTile ? (
                 <BentoTile
                   id={activeTile.id}
-                  size={activeTile.size}
+                  layout={activeTile.layout}
                   title={activeTile.title}
                   type={activeTile.type}
                   icon={activeTile.icon}

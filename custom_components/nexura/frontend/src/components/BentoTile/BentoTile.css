@@ -16,6 +16,8 @@
     touch-action: manipulation;
     user-select: none;
     -webkit-user-select: none;
+    /* Isolate repaints to individual tiles for GPU perf */
+    contain: layout style;
 }
 
 .bento-tile.no-padding {
@@ -44,10 +46,19 @@
     border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
+/* Drag performance: disable expensive GPU effects during drag */
 .bento-tile.dragging {
     cursor: grabbing;
     opacity: 0.3;
     touch-action: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    will-change: transform;
+}
+
+/* Pause halo animations during drag to free GPU cycles */
+.bento-tile.dragging .halo-gradient {
+    animation-play-state: paused;
 }
 
 .bento-tile.is-dragging-original {

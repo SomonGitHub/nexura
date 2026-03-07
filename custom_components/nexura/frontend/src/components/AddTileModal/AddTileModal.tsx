@@ -39,10 +39,12 @@ export const AddTileModal: React.FC<AddTileModalProps> = ({ isOpen, onClose, onA
         }
     }, [tileToEdit, isOpen, defaultRoom]);
 
-    // Force size away from 'small' for specific types
     React.useEffect(() => {
         if ((type === 'cover' || type === 'slider') && size === 'small') {
             setSize('rect');
+        }
+        if (type === 'energy-flow' && (size === 'small' || size === 'rect' || size === 'square')) {
+            setSize('large-square');
         }
     }, [type, size]);
 
@@ -89,6 +91,9 @@ export const AddTileModal: React.FC<AddTileModalProps> = ({ isOpen, onClose, onA
             if (id.startsWith('cover.')) {
                 setType('cover');
                 setSize('rect'); // Enforce min size for covers
+            } else if (id.startsWith('media_player.')) {
+                setType('media');
+                setSize('large-rect');
             } else if (id.startsWith('light.') || id.startsWith('switch.')) {
                 setType('toggle');
             }
@@ -192,6 +197,9 @@ export const AddTileModal: React.FC<AddTileModalProps> = ({ isOpen, onClose, onA
                             <option value="slider">Curseur (Slider)</option>
                             <option value="graph">Graphique Miniature (Graph)</option>
                             <option value="cover">Volet (Cover)</option>
+                            <option value="media">Lecteur Média (Media)</option>
+                            <option value="energy-gauge">Jauge Énergie (Gauge)</option>
+                            <option value="energy-flow">Flux Énergie (Flow)</option>
                             <option value="spacer">Espace (Spacer)</option>
                         </select>
                     </div>

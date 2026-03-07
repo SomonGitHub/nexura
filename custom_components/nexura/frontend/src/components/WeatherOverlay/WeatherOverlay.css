@@ -1,0 +1,235 @@
+/* ============================================================
+ * WeatherOverlay — Ambient weather effects layer
+ *
+ * All effects are pure CSS animations for maximum performance.
+ * The overlay sits above the background but below the tiles.
+ * Everything has pointer-events: none so it never blocks UI.
+ * ============================================================ */
+
+.weather-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    overflow: hidden;
+}
+
+/* ---- Sun glow effect ---- */
+.sun-glow {
+    position: absolute;
+    top: -10%;
+    right: -5%;
+    width: 50vw;
+    height: 50vw;
+    max-width: 600px;
+    max-height: 600px;
+    border-radius: 50%;
+    background: radial-gradient(circle,
+            rgba(255, 223, 100, 0.2) 0%,
+            rgba(255, 180, 50, 0.08) 40%,
+            transparent 70%);
+    animation: sun-pulse 8s ease-in-out infinite;
+}
+
+/* Reduced glow when partly cloudy */
+.sun-glow.sun-reduced {
+    opacity: 0.5;
+}
+
+@keyframes sun-pulse {
+
+    0%,
+    100% {
+        opacity: 0.6;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 1;
+        transform: scale(1.05);
+    }
+}
+
+/* ---- Sun rays ---- */
+.sun-ray {
+    position: absolute;
+    top: 0;
+    right: 10%;
+    width: 2px;
+    height: 100vh;
+    background: linear-gradient(to bottom,
+            rgba(255, 220, 100, 0.12),
+            transparent 70%);
+    transform-origin: top right;
+    animation: ray-sweep 20s ease-in-out infinite;
+}
+
+.sun-ray:nth-child(2) {
+    right: 25%;
+    animation-delay: -7s;
+    opacity: 0.7;
+    transform: rotate(-15deg);
+}
+
+.sun-ray:nth-child(3) {
+    right: 40%;
+    animation-delay: -13s;
+    opacity: 0.5;
+    transform: rotate(-25deg);
+}
+
+@keyframes ray-sweep {
+
+    0%,
+    100% {
+        opacity: 0.3;
+        transform: rotate(-5deg);
+    }
+
+    50% {
+        opacity: 0.8;
+        transform: rotate(5deg);
+    }
+}
+
+/* ---- Cloud shapes ---- */
+.cloud {
+    position: absolute;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 50%;
+    filter: blur(20px);
+    animation: cloud-drift linear infinite;
+}
+
+.cloud-1 {
+    width: 300px;
+    height: 100px;
+    top: 8%;
+    animation-duration: 80s;
+    left: -300px;
+}
+
+.cloud-2 {
+    width: 250px;
+    height: 80px;
+    top: 25%;
+    animation-duration: 65s;
+    animation-delay: -20s;
+    left: -250px;
+    opacity: 0.7;
+}
+
+.cloud-3 {
+    width: 200px;
+    height: 70px;
+    top: 15%;
+    animation-duration: 90s;
+    animation-delay: -45s;
+    left: -200px;
+    opacity: 0.5;
+}
+
+/* Dense clouds for rain */
+.cloud.cloud-dense {
+    background: rgba(255, 255, 255, 0.08);
+    filter: blur(30px);
+}
+
+@keyframes cloud-drift {
+    from {
+        transform: translateX(0);
+    }
+
+    to {
+        transform: translateX(calc(100vw + 400px));
+    }
+}
+
+/* ---- Rain drops ---- */
+.raindrop {
+    position: absolute;
+    width: 2px;
+    height: 15px;
+    background: linear-gradient(to bottom,
+            transparent,
+            rgba(255, 255, 255, 0.12));
+    border-radius: 0 0 2px 2px;
+    animation: rain-fall linear infinite;
+    transform: rotate(5deg);
+}
+
+@keyframes rain-fall {
+    0% {
+        transform: translateY(-20px) rotate(5deg);
+        opacity: 0;
+    }
+
+    10% {
+        opacity: 1;
+    }
+
+    90% {
+        opacity: 1;
+    }
+
+    100% {
+        transform: translateY(100vh) rotate(5deg);
+        opacity: 0;
+    }
+}
+
+/* ---- Snow flakes ---- */
+.snowflake {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 50%;
+    animation: snow-fall linear infinite;
+}
+
+@keyframes snow-fall {
+    0% {
+        transform: translateY(-10px) translateX(0);
+        opacity: 0;
+    }
+
+    10% {
+        opacity: 1;
+    }
+
+    50% {
+        transform: translateY(50vh) translateX(20px);
+    }
+
+    90% {
+        opacity: 1;
+    }
+
+    100% {
+        transform: translateY(100vh) translateX(-10px);
+        opacity: 0;
+    }
+}
+
+/* ---- Theme-aware adjustments ---- */
+body.theme-light .sun-glow {
+    background: radial-gradient(circle,
+            rgba(255, 200, 50, 0.15) 0%,
+            rgba(255, 180, 50, 0.05) 40%,
+            transparent 70%);
+}
+
+body.theme-light .cloud {
+    background: rgba(100, 120, 140, 0.06);
+}
+
+body.theme-light .raindrop {
+    background: linear-gradient(to bottom,
+            transparent,
+            rgba(100, 120, 160, 0.15));
+}
+
+body.theme-light .snowflake {
+    background: rgba(150, 170, 200, 0.2);
+}

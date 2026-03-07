@@ -7,7 +7,12 @@ interface AnimatedHaloProps {
     type: HaloType;
 }
 
-export const AnimatedHalo: React.FC<AnimatedHaloProps> = ({ type }) => {
+/**
+ * AnimatedHalo displays a rotating gradient border effect around tiles.
+ * Memoized because the halo type rarely changes and re-rendering the
+ * motion.div unnecessarily is wasteful during drag operations.
+ */
+export const AnimatedHalo: React.FC<AnimatedHaloProps> = React.memo(({ type }) => {
     if (type === 'none') return null;
 
     return (
@@ -21,4 +26,4 @@ export const AnimatedHalo: React.FC<AnimatedHaloProps> = ({ type }) => {
             <div className="halo-gradient"></div>
         </motion.div>
     );
-};
+});

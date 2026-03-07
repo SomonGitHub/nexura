@@ -1,0 +1,92 @@
+/* ============================================================
+ * EnergyFlowContent — Animated energy flow visualization.
+ *
+ * SVG-based component showing energy flow between nodes
+ * (Solar, Home, Grid, Battery) with Bézier curve paths
+ * and animated particles.
+ * ============================================================ */
+
+.energy-flow {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.energy-flow svg {
+    width: 100%;
+    height: 100%;
+}
+
+/* ---- Node styling ---- */
+.energy-node {
+    text-anchor: middle;
+}
+
+.node-icon {
+    font-size: 1.5rem;
+}
+
+.node-value {
+    fill: var(--text-primary);
+    font-size: 11px;
+    font-weight: 700;
+    font-family: inherit;
+}
+
+.node-label {
+    fill: var(--text-secondary);
+    font-size: 8px;
+    font-weight: 500;
+    font-family: inherit;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* ---- Flow paths ---- */
+.flow-path {
+    fill: none;
+    stroke: rgba(255, 255, 255, 0.08);
+    stroke-width: 2;
+    stroke-linecap: round;
+}
+
+body.theme-light .flow-path {
+    stroke: rgba(0, 0, 0, 0.06);
+}
+
+/* ---- Particles ---- */
+.flow-particle {
+    filter: blur(0.5px);
+}
+
+/* ---- Node background circles ---- */
+.node-bg {
+    fill: rgba(255, 255, 255, 0.04);
+    stroke: rgba(255, 255, 255, 0.08);
+    stroke-width: 1;
+}
+
+body.theme-light .node-bg {
+    fill: rgba(0, 0, 0, 0.03);
+    stroke: rgba(0, 0, 0, 0.06);
+}
+
+/* ---- Node glow when active ---- */
+.node-glow-solar {
+    fill: rgba(255, 200, 50, 0.1);
+}
+
+.node-glow-grid {
+    fill: rgba(100, 150, 255, 0.1);
+}
+
+.node-glow-battery {
+    fill: rgba(0, 255, 136, 0.1);
+}
+
+.node-glow-home {
+    fill: rgba(255, 255, 255, 0.08);
+}

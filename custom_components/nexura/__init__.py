@@ -9,7 +9,14 @@ from homeassistant.components import websocket_api, frontend
 from homeassistant.components.http import HomeAssistantView, StaticPathConfig
 from homeassistant.helpers.storage import Store
 
-from .const import DOMAIN, STORAGE_KEY, STORAGE_VERSION
+from .const import (
+    DOMAIN,
+    STORAGE_KEY,
+    STORAGE_VERSION,
+    CONF_DAY_NIGHT_CYCLE,
+    CONF_WEATHER_EFFECTS,
+    WEATHER_EFFECTS_ALL,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -110,13 +117,21 @@ async def ws_get_config(hass: HomeAssistant, connection: websocket_api.ActiveCon
         entry = entries[0]
         theme = entry.options.get("theme", "auto")
         screensaver_enabled = entry.options.get("screensaver_enabled", True)
+        day_night_cycle = entry.options.get(CONF_DAY_NIGHT_CYCLE, True)
+        weather_effects = entry.options.get(
+            CONF_WEATHER_EFFECTS, WEATHER_EFFECTS_ALL
+        )
         connection.send_result(msg["id"], {
             "theme": theme,
-            "screensaver_enabled": screensaver_enabled
+            "screensaver_enabled": screensaver_enabled,
+            "day_night_cycle": day_night_cycle,
+            "weather_effects": weather_effects,
         })
     else:
         connection.send_result(msg["id"], {
             "theme": "auto",
-            "screensaver_enabled": True
+            "screensaver_enabled": True,
+            "day_night_cycle": True,
+            "weather_effects": WEATHER_EFFECTS_ALL,
         })
 
