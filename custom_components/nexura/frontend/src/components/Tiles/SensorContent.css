@@ -14,7 +14,7 @@
 }
 
 .sensor-value {
-    font-size: 2.8rem;
+    font-size: clamp(1.5rem, 15cqw, 2.8rem);
     font-weight: 700;
     line-height: 1.1;
     letter-spacing: -1.5px;
@@ -22,6 +22,7 @@
     background-clip: text;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
+    white-space: nowrap;
 }
 
 body.theme-dark .sensor-value {
@@ -49,17 +50,21 @@ body.theme-dark .sensor-value {
 }
 
 .sensor-label {
-    font-size: 0.85rem;
+    font-size: clamp(0.65rem, 6cqw, 0.85rem);
     color: var(--text-secondary);
     opacity: 0.5;
     margin-top: 4px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 100%;
 }
 
 /* Adjust for smaller tiles if needed */
 .tile-small .sensor-value {
-    font-size: 2.2rem;
+    font-size: clamp(1.2rem, 18cqw, 2.2rem);
 }
 
 .tile-small .sensor-unit {
