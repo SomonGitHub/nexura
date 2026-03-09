@@ -4,7 +4,7 @@
     -webkit-backdrop-filter: blur(12px) saturate(180%);
     border-radius: 24px;
     border: 1px solid var(--tile-border);
-    padding: 1.25rem;
+    padding: clamp(0.75rem, 2.5cqw, 1.25rem);
     overflow: hidden;
     display: flex;
     flex-direction: column;
