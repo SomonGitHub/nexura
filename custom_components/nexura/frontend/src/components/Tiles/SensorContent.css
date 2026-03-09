@@ -9,20 +9,33 @@
 
 .sensor-value-container {
     display: flex;
+    align-items: center;
+    width: 100%;
+    overflow: visible;
+    min-height: 1.5em;
+}
+
+.sensor-value-wrapper {
+    display: flex;
     align-items: baseline;
-    gap: 4px;
+    gap: 0.05em;
+    /* Proportional gap */
+    white-space: nowrap;
 }
 
 .sensor-value {
-    font-size: clamp(1.1rem, 15cqw, 2.8rem);
     font-weight: 700;
     line-height: 1.1;
-    letter-spacing: -1.5px;
+    letter-spacing: -0.01em;
     background: linear-gradient(135deg, var(--text-primary) 0%, var(--accent-color) 100%);
     background-clip: text;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     white-space: nowrap;
+    display: inline-block;
+    /* Sufficient vertical padding for descenders, minimal horizontal */
+    padding: 0.1em 0px 0.2em 0px;
+    margin: -0.1em 0px -0.2em 0px;
 }
 
 body.theme-dark .sensor-value {
@@ -42,18 +55,19 @@ body.theme-dark .sensor-value {
 }
 
 .sensor-unit {
-    font-size: 1.2rem;
     font-weight: 500;
     color: var(--text-secondary);
-    margin-bottom: 0.2rem;
     opacity: 0.7;
+    font-size: 0.6em;
+    /* Proportional to parent */
+    margin-bottom: 0.15em;
 }
 
 .sensor-label {
-    font-size: clamp(0.6rem, 6cqw, 0.85rem);
+    font-size: clamp(0.6rem, 5cqw, 0.85rem);
     color: var(--text-secondary);
     opacity: 0.5;
-    margin-top: 2px;
+    margin-top: 0;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     white-space: nowrap;
@@ -62,11 +76,15 @@ body.theme-dark .sensor-value {
     width: 100%;
 }
 
-/* Adjust for smaller tiles if needed */
-.tile-small .sensor-value {
-    font-size: clamp(1.2rem, 18cqw, 2.2rem);
+/* Base resets for dynamic scaling */
+.tile-small .sensor-value,
+.sensor-value {
+    font-size: inherit;
+    /* Controlled by React component */
 }
 
-.tile-small .sensor-unit {
-    font-size: 1rem;
+.tile-small .sensor-unit,
+.sensor-unit {
+    font-size: 0.5em;
+    /* Proportional to parent font size */
 }

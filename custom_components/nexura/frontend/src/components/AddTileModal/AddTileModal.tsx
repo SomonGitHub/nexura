@@ -45,6 +45,9 @@ export const AddTileModal: React.FC<AddTileModalProps> = ({ isOpen, onClose, onA
         if ((type === 'cover' || type === 'slider') && size === 'small') {
             setSize('rect');
         }
+        if (type === 'scene') {
+            setSize('small');
+        }
         if (type === 'energy-flow' && (size === 'small' || size === 'rect' || size === 'square')) {
             setSize('large-square');
         }
@@ -101,6 +104,9 @@ export const AddTileModal: React.FC<AddTileModalProps> = ({ isOpen, onClose, onA
                 setSize('large-rect');
             } else if (id.startsWith('light.') || id.startsWith('switch.')) {
                 setType('toggle');
+            } else if (id.startsWith('scene.')) {
+                setType('scene');
+                setSize('small');
             }
 
             // If room is empty or matches Inconnue, try to pre-fill
@@ -123,7 +129,7 @@ export const AddTileModal: React.FC<AddTileModalProps> = ({ isOpen, onClose, onA
     }).slice(0, 50); // Increased limit to 50 for better usability without too much lag
 
     return (
-        <div className="modal-overlay" onClick={onClose}>
+        <div className="modal-overlay">
             <div className="modal-content" onClick={(e) => e.stopPropagation()}>
                 <h2>{tileToEdit ? 'Modifier la Tuile' : 'Ajouter une Tuile'}</h2>
                 <form onSubmit={handleSubmit}>
@@ -205,6 +211,7 @@ export const AddTileModal: React.FC<AddTileModalProps> = ({ isOpen, onClose, onA
                             <option value="media">Lecteur Média (Media)</option>
                             <option value="energy-gauge">Jauge Énergie (Gauge)</option>
                             <option value="energy-flow">Flux Énergie (Flow)</option>
+                            <option value="scene">Scène (Magic Button)</option>
                             <option value="spacer">Espace (Spacer)</option>
                         </select>
                     </div>

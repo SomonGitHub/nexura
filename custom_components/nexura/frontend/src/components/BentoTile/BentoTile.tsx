@@ -153,6 +153,7 @@ const BentoTileInner: React.FC<BentoTileProps> = ({
     // Determine halo type based on entity status or forced override
     const haloType = forcedHaloType || getHaloType(entityId, hassEntities);
     const isSpacer = type === 'spacer';
+    const isScene = type === 'scene';
 
     // IMPORTANT: The DragOverlay component should not use useSortable 
     // to avoid duplicate registration of the same ID in dnd-kit's internal state.
@@ -201,7 +202,7 @@ const BentoTileInner: React.FC<BentoTileProps> = ({
                 stiffness: 300,
                 damping: 30,
             }}
-            className={`bento-tile ${layout ? '' : sizeClass} ${isSpacer ? 'tile-spacer' : ''} ${isDragging ? 'dragging' : ''} ${isDragging && !isOverlay ? 'is-dragging-original' : ''} ${isOverlay ? 'overlay' : ''} ${isEditMode ? 'edit-mode' : ''} ${noPadding ? 'no-padding' : ''} ${layout?.hidden ? 'tile-hidden' : ''} ${themeClass} ${stateClass} ${className}`}
+            className={`bento-tile ${layout ? '' : sizeClass} ${isSpacer ? 'tile-spacer' : ''} ${isScene ? 'tile-scene' : ''} ${isDragging ? 'dragging' : ''} ${isDragging && !isOverlay ? 'is-dragging-original' : ''} ${isOverlay ? 'overlay' : ''} ${isEditMode ? 'edit-mode' : ''} ${noPadding ? 'no-padding' : ''} ${layout?.hidden ? 'tile-hidden' : ''} ${themeClass} ${stateClass} ${className}`}
             whileHover={!isOverlay && !isDragging && !isAnyDragging && !isEditMode ? { scale: 1.02 } : undefined}
             whileTap={!isOverlay && !isDragging && !isEditMode ? { scale: 0.98 } : undefined}
             onClick={() => {
@@ -254,13 +255,15 @@ const BentoTileInner: React.FC<BentoTileProps> = ({
                             >
                                 <Pencil size={24} />
                             </button>
-                            <button
-                                className="glass-action-btn btn-resize"
-                                onClick={(e) => { e.stopPropagation(); onResize?.(); setIsOverlayActive(false); }}
-                                title="Redimensionner"
-                            >
-                                <Maximize2 size={24} />
-                            </button>
+                            {!isScene && (
+                                <button
+                                    className="glass-action-btn btn-resize"
+                                    onClick={(e) => { e.stopPropagation(); onResize?.(); setIsOverlayActive(false); }}
+                                    title="Redimensionner"
+                                >
+                                    <Maximize2 size={24} />
+                                </button>
+                            )}
                             <button
                                 className="glass-action-btn btn-delete"
                                 onClick={(e) => { e.stopPropagation(); onDelete?.(); setIsOverlayActive(false); }}

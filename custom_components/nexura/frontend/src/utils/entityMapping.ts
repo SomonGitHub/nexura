@@ -42,6 +42,7 @@ export const getAutoIcon = (entityId?: string, state?: string, deviceClass?: str
     if (domain === 'vacuum') return 'Wind';
     if (domain === 'weather') return getWeatherIcon(state || 'cloudy');
     if (domain === 'cover') return 'Blinds';
+    if (domain === 'scene') return 'Zap';
 
     // Device class based overrides
     if (deviceClass === 'temperature') return 'Thermometer';

@@ -34,6 +34,7 @@ import { CoverContent } from './components/Tiles/CoverContent'
 import { MediaContent } from './components/Tiles/MediaContent'
 import { EnergyGaugeContent } from './components/Tiles/EnergyGaugeContent'
 import { EnergyFlowContent } from './components/Tiles/EnergyFlowContent'
+import { SceneContent } from './components/Tiles/SceneContent'
 import { WeatherOverlay, type WeatherEffectsMode } from './components/WeatherOverlay/WeatherOverlay'
 import { getHaloType } from './hooks/useTileStatus'
 import { getAutoIcon, getAutoColor, getRoomIcon } from './utils/entityMapping'
@@ -43,7 +44,7 @@ import './components/BentoTile/BentoTile.css';
 import './components/Sidebar/Sidebar.css';
 import './App.css'
 
-export type TileType = 'info' | 'toggle' | 'slider' | 'graph' | 'cover' | 'spacer' | 'media' | 'energy-gauge' | 'energy-flow';
+export type TileType = 'info' | 'toggle' | 'slider' | 'graph' | 'cover' | 'spacer' | 'media' | 'energy-gauge' | 'energy-flow' | 'scene';
 export type TileTheme = 'glass' | 'solid' | 'gradient' | 'minimal' | 'neon' | 'frosted';
 export type Breakpoint = 'desktop' | 'tablet' | 'mobile';
 
@@ -623,12 +624,12 @@ function App() {
       // Add new tile
       const dims = getSizeDimensions(newTile.size);
 
+      const targetRoom = newTile.room || activeView;
       setTiles(prevTiles => {
         const updatedTiles = [...prevTiles, newTile];
 
         setLayouts(prevLayouts => {
           const updatedLayouts = { ...prevLayouts };
-          const targetRoom = newTile.room || activeView;
 
           if (activeView === 'favorites') {
             newTile.isFavorite = true;
@@ -673,6 +674,8 @@ function App() {
 
         return updatedTiles;
       });
+      // Switch view to the room where the tile was added
+      setActiveView(targetRoom);
     }
     setIsAddModalOpen(false);
   };
@@ -826,6 +829,12 @@ function App() {
       executeService(hassConnection, domain, service, { entity_id: entityId });
     }
   };
+
+  const handleSceneTrigger = useCallback((entityId?: string) => {
+    if (entityId) {
+      executeService(hassConnection, 'scene', 'turn_on', { entity_id: entityId });
+    }
+  }, [hassConnection]);
 
   const handleToggleFullScreen = () => {
     if (!document.fullscreenElement) {
@@ -1006,6 +1015,13 @@ function App() {
           />
         );
       }
+      case 'scene':
+        return (
+          <SceneContent
+            onTrigger={() => handleSceneTrigger(tile.entityId)}
+            isEditMode={isEditMode}
+          />
+        );
       case 'info':
       default: {
         const deviceClass = entity?.attributes?.device_class;
