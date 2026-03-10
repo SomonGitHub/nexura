@@ -33,6 +33,7 @@ Nexura est une intégration personnalisée (Custom Component) pour Home Assistan
     </td>
   </tr>
 </table>
+*   🌤️ La météo sur votre dashboard : rayon du soleil, pluie, nuages ! tout est là !
 *   🚨 Nouveau systeme d'alerte pour vous prévenir que quelque chose cloche dans votre pièce !
 <p align="center">
   <img src="https://github.com/user-attachments/assets/4b344d5c-9e68-415b-8530-b0cd2270e74a" alt="Nexura Dashboard alert" width="10%"/>
@@ -65,8 +66,7 @@ Nexura est une intégration personnalisée (Custom Component) pour Home Assistan
 <p align="center">
   <img src="https://github.com/user-attachments/assets/dc609749-1dfb-4851-94f8-7e6e25f87373" alt="Nexura Dashboard Desktop View" width="50%"/>
 </p>
-
-
+*    📺 Un mode economiseur d'écran avec l'heure et vos alertes !
 *   🪄 **Mode Édition Avancé** : Modifiez la position de vos tuiles, changez leur taille (Default, Wide, Tall, Large) ou masquez-les spécifiquement pour l'appareil que vous utilisez actuellement.
 *   🌡️ **Tuiles Riches et Dynamiques** :
     *   Lumières & Prises (Toggles tactiles)
