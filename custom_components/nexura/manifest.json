@@ -11,5 +11,5 @@
   "documentation": "https://github.com/SomonGitHub/hacs-nexura",
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/SomonGitHub/hacs-nexura/issues",
-  "version": "0.1.13"
+  "version": "0.1.14"
 }
