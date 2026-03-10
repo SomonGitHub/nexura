@@ -1,7 +1,7 @@
 # Nexura Dashboard
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/SomonGitHub/hacs-nexura/master/brand/logo.png" alt="Nexura Logo" width="200"/>
+  <img src="https://raw.githubusercontent.com/SomonGitHub/nexura/master/brand/logo.png" alt="Nexura Logo" width="200"/>
 </p>
 
 # Nexura Dashboard
@@ -87,7 +87,7 @@ Nexura est une intégration personnalisée (Custom Component) pour Home Assistan
 
 1. Ouvrez **HACS** dans votre Home Assistant.
 2. Cliquez sur les 3 points en haut à droite > **Custom repositories**.
-3. Ajoutez cette URL de dépôt : `https://github.com/SomonGitHub/hacs-nexura`
+3. Ajoutez cette URL de dépôt : `https://github.com/SomonGitHub/nexura`
 4. Sélectionnez la catégorie **Integration**.
 5. Cliquez sur **Ajouter**.
 6. Cherchez "Nexura Dashboard" et cliquez sur **Download**.
