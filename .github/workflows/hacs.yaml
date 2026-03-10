@@ -1,0 +1,19 @@
+name: HACS Action
+
+on:
+  push:
+    branches:
+      - master
+      - main
+  pull_request:
+
+jobs:
+  hacs:
+    runs-on: "ubuntu-latest"
+    name: HACS
+    steps:
+      - uses: "actions/checkout@v4"
+      - name: HACS validation
+        uses: "hacs/action@main"
+        with:
+          category: "integration"
