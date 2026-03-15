@@ -120,7 +120,7 @@ export interface TileData {
   tileTheme?: TileTheme;
 }
 
-const colsConfig = { ultra: 16, desktop: 14, tablet: 10, mobile: 6 };
+const colsConfig = { ultra: 16, desktop: 14, tablet: 12, mobile: 6 };
 
 const mockGraphData = [
   { time: '10:00', value: 300 },
@@ -300,7 +300,7 @@ function App() {
 
         let bp: Breakpoint = 'desktop';
         if (width < 720) bp = 'mobile';
-        else if (width < 1024) bp = 'tablet';
+        else if (width < 1340) bp = 'tablet'; // 1280px tablets now get 10 columns (perfect density)
         else if (width < 1920) bp = 'desktop';
         else bp = 'ultra';
 
@@ -327,7 +327,7 @@ function App() {
 
       let bp: Breakpoint = 'desktop';
       if (width < 720) bp = 'mobile';
-      else if (width < 1024) bp = 'tablet';
+      else if (width < 1340) bp = 'tablet';
       else if (width < 1920) bp = 'desktop';
       else bp = 'ultra';
 
